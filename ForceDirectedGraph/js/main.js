@@ -6,12 +6,12 @@ paper.install(window);
 $(document).ready(
     function () {
         paper.setup('myCanvas');
-        const radius = 5;
-        const canvasSize = 500;
+        const RADIUS = 5;
+        const CANVAS_SIZE = 600;
         // following algorithm are from A heuristic for graph drawing by Eades in 1984
         // but I adjusted the constants to adapt the canvas
         const C1 = 3.0, C2 = 30.0, C3 = 0.5, C4 = 1.0;
-        const pathColor = new Color(0.6, 0.6, 0.6, 0.4);
+        const PATH_COLOR = new Color(0.6, 0.6, 0.6, 0.4);
 
         // load data from json
         $.getJSON('js/miserables.json', function (data) {
@@ -20,14 +20,14 @@ $(document).ready(
 
             let clickedShape;
             let tool = new Tool();
-            // when mouse is no longer click on the shape, release.
+            // when mouse is no longer click on the shape, release it.
             tool.onMouseUp = function () {
                 clickedShape = undefined;
             };
             tool.activate();
             nodes.forEach(function (node) {
                 // randomize the initial position
-                node.circle = new Shape.Circle(Point.random().multiply(canvasSize), radius);
+                node.circle = new Shape.Circle(Point.random().multiply(CANVAS_SIZE), RADIUS);
                 node.circle.strokeColor = 'white';
                 node.circle.fillColor = new Color({hue: node.group * 30, saturation: 0.7, brightness: 0.9});
                 node.circle.onMouseDown = function (event) {
@@ -45,7 +45,7 @@ $(document).ready(
             view.onFrame = function () {
                 nodes.forEach(function (nodeOuter) {
                     nodeOuter.force = new Point(0, 0);
-                    // repel force
+                    // repulsion force
                     nodes.filter((node) => node.id !== nodeOuter.id)
                         .forEach(function (nodeInner) {
                             let vector = nodeOuter.circle.position.subtract(nodeInner.circle.position);
@@ -53,21 +53,13 @@ $(document).ready(
                             nodeOuter.force = nodeOuter.force.add(vector);
                         });
 
-                    links.filter((link) => link.source === nodeOuter.id)
+                    // attraction force
+                    links.filter((link) => link.source === nodeOuter.id || link.target === nodeOuter.id)
                         .forEach(function (link) {
-                            nodes.filter((node) => node.id === link.target)
-                                .forEach(function (nodeInner) {
-                                    let vector = nodeInner.circle.position.subtract(nodeOuter.circle.position);
-                                    vector.length = calculateAttractionForce(vector.length);
-                                    nodeOuter.force = nodeOuter.force.add(vector);
-                                });
-                        });
-
-                    links.filter((link) => link.target === nodeOuter.id)
-                        .forEach(function (link) {
-                            nodes.filter((node) => node.id == link.source)
-                                .forEach(function (nodeInner) {
-                                    let vector = nodeInner.circle.position.subtract(nodeOuter.circle.position);
+                            nodes.filter((node) => node.id !== nodeOuter.id)
+                                .filter((node) => node.id === link.target || node.id === link.source)
+                                .forEach(function (node) {
+                                    let vector = node.circle.position.subtract(nodeOuter.circle.position);
                                     vector.length = calculateAttractionForce(vector.length);
                                     nodeOuter.force = nodeOuter.force.add(vector);
                                 });
@@ -80,6 +72,7 @@ $(document).ready(
                 updatePath(links, nodes);
             };
 
+            // following algorithm are from A heuristic for graph drawing by Eades in 1984
             function calculateAttractionForce(distance) {
                 return C1 * Math.log(distance / C2);
             }
@@ -101,14 +94,13 @@ $(document).ready(
                             toNode = node;
                         });
 
-                    // init
+                    // init the links' path
                     if (link.path === undefined) {
-                        link.path = new Path([fromNode.circle.position, toNode.circle.position]);
-                        link.path.strokeColor = link.path.fillColor = pathColor;
+                        link.path = new Path();
+                        link.path.strokeColor = link.path.fillColor = PATH_COLOR;
                         link.path.strokeWidth = Math.sqrt(link.value);
-                    } else {
-                        link.path.setSegments([fromNode.circle.position, toNode.circle.position]);
                     }
+                    link.path.setSegments([fromNode.circle.position, toNode.circle.position]);
                 });
 
             }
